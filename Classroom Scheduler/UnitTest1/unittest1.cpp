@@ -10,14 +10,14 @@ namespace UnitTest1
 	TEST_CLASS(UnitTest1)
 	{
 	public:
-		TEST_METHOD(FullTest)
+		TEST_METHOD(InterviewQuestion)
 		{
-			vector<vector<int>> i_vectStudentsCourses = {{0,1}, {1,2}, {2,3}, {3,0}};
+			vector<vector<int>> vectStudentsCourses = {{0,1}, {1,2}, {2,3}, {3,0}};
 			bool bReturnValue = SolveScheduling(
 				2, 
 				2,
 				4,
-				i_vectStudentsCourses);
+				vectStudentsCourses);
 			Assert::IsTrue(bReturnValue);
 		}
 	};

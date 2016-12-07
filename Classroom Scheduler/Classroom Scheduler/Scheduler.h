@@ -132,7 +132,7 @@ bool DoColouring(
 	//Some error checking
 
 	//Set initial colours at -1
-	vector<int> vectColours(-1, i_oGraph.m_vectNodes.size());
+	vector<int> vectColours(i_oGraph.m_vectNodes.size(), -1);
 
 	//Find colour for nodes until success/failure
 	int nWorkNode = 0;
@@ -179,16 +179,21 @@ void PrintCourseSchedulingSolution(
 {
 	//We need room numbers. Count the occurrences of each colour.
 	int nColourCount = *max_element(i_vectNodeColours.begin(), i_vectNodeColours.end());
-	vector<int> vectColourOccurrences(0, nColourCount);
+	vector<int> vectColourOccurrences(nColourCount + 1, 0);
 
 	for(int nNode = 0; 
 		nNode < i_vectNodeColours.size(); 
 		++nNode)
 	{
+		int nRoom = i_vectNodeColours[nNode];
+		int & nTimeSlot = vectColourOccurrences[nRoom];
+
 		printf("Course: %d\tRoom: %d\tTime Slot:%d\n",
 			nNode,
-			i_vectNodeColours[nNode],
-			vectColourOccurrences[i_vectNodeColours[nNode]]++);
+			nTimeSlot, 
+			nRoom);
+
+		nTimeSlot++;
 	}
 }
 
@@ -210,7 +215,7 @@ bool CheckSolution(
 		++nColour)
 	{
 		int nOccurrenceCount = count(i_vectNodeColours.begin(), i_vectNodeColours.end(), nColour);
-		if(nOccurrenceCount >= i_nMaxNodesPerColour)
+		if(nOccurrenceCount > i_nMaxNodesPerColour)
 			return false;
 	}
 
@@ -236,9 +241,12 @@ bool CheckInput(
 	const vector<vector<int>> & i_vectStudentsCourses)
 {
 	//Positive counts
-	if(i_nTimeSlotCount >= 0
+	assert(i_nTimeSlotCount >= 0
 		&& i_nRoomCount >= 0
-		&& i_nCourseCount >= 0)
+		&& i_nCourseCount >= 0);
+	if(!(i_nTimeSlotCount >= 0
+		&& i_nRoomCount >= 0
+		&& i_nCourseCount >= 0))
 		return false;
 
 	//Course numbers should be less than the course count
