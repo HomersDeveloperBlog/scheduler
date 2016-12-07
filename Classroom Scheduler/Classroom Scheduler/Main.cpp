@@ -23,6 +23,7 @@
 //Using the same code with K = N removes the time slot constraint.
 //Whatever the program acheives on its first run through would then be reported
 
+#include "assert.h"
 #include <vector>
 #include <set>
 #include <algorithm> //std::count, max_element
@@ -36,17 +37,42 @@ struct Node
 
 struct Graph
 {
+	Graph(
+		const int i_nCourseCount,
+		const vector<vector<int>> & i_vectStudentsCourses)
+	{
+		m_vectNodes.resize(i_nCourseCount, Node());
+	
+		for(const vector<int> & vectConstraint : i_vectStudentsCourses)
+		{
+			for(int nCourse1 = 0; 
+				nCourse1 < vectConstraint.size();
+				++nCourse1)
+			{
+				for(int nCourse2 = nCourse1 + 1;
+					nCourse2 < vectConstraint.size();
+					++nCourse2)
+				{
+					AddEdge(
+						vectConstraint[nCourse1],
+						vectConstraint[nCourse2]);
+				}
+			}
+		}
+	}
+
 	void AddEdge(
 		int i_nNode1, 
 		int i_nNode2)
 	{
 		//node ID's should be valid.
-		if(i_nNode1 >= 0 && i_nNode1 < m_vectNodes.size()
-			i_nNode2 >= 0 && i_nNode2 < m_vectNodes.size())
+		if(i_nNode1 != i_nNode2
+			&& i_nNode1 >= 0 && i_nNode1 < m_vectNodes.size()
+			&& i_nNode2 >= 0 && i_nNode2 < m_vectNodes.size())
 		{
 			//Add adjacency to both nodes
-			m_vectNodes[i_nNode1].m_setAdjacentNodeIDs += i_nNode2;
-			m_vectNodes[i_nNode2].m_setAdjacentNodeIDs += i_nNode1;
+			m_vectNodes[i_nNode1].m_setAdjacentNodeIDs.insert(i_nNode2);
+			m_vectNodes[i_nNode2].m_setAdjacentNodeIDs.insert(i_nNode1);
 		}
 	}
 
@@ -77,13 +103,13 @@ int GetNextAvailableColour(
 	assert(i_nNodeIndex >= 0
 		&& i_nNodeIndex < i_oGraph.m_vectNodes.size());
 
-	int nTryColour = i_vectColours[nNodeIndex] + 1; //since we want the next one
+	int nTryColour = i_vectColours[i_nNodeIndex] + 1; //since we want the next one
 	for(; nTryColour < i_oGraph.m_vectNodes.size(); //just in case
 	++nTryColour)
 	{
 		//Available implies no adjacent nodes with that colour, and node count constraint not violated.
 		if(ColourIsAvailable(i_oGraph.m_vectNodes[i_nNodeIndex], nTryColour, i_vectColours)
-			&& count(i_vectColours.begin, i_vectColours.end, nTryColour) < i_nMaxNodesPerColour)
+			&& count(i_vectColours.begin(), i_vectColours.end(), nTryColour) < i_nMaxNodesPerColour)
 		{
 			return nTryColour;
 		}
@@ -112,7 +138,11 @@ bool DoColouring(
 		&& nWorkNode < i_oGraph.m_vectNodes.size())
 	{
 		//Get next available colour > current colour.
-		int nNextAvailableColour = GetNextAvailableColour(oGraph, nNodeIndex, vectColours);
+		int nNextAvailableColour = GetNextAvailableColour(
+			i_oGraph,
+			nWorkNode,
+			vectColours,
+			i_nMaxNodesPerColour);
 
 		//If this colour is K, backtrack on colouring sequence, otherwise proceed to next
 		assert(nNextAvailableColour >= 0
@@ -177,7 +207,7 @@ bool CheckSolution(
 		nColour < nMaxColour;
 		++nColour)
 	{
-		int nOccurrenceCount = count(i_vectColours.begin, i_vectColours.end, nColour);
+		int nOccurrenceCount = count(i_vectNodeColours.begin(), i_vectNodeColours.end(), nColour);
 		if(nOccurrenceCount >= i_nMaxNodesPerColour)
 			return false;
 	}
@@ -189,24 +219,76 @@ bool CheckSolution(
 	{
 		if(!ColourIsAvailable(
 			i_oGraph.m_vectNodes[nNode],
-			i_vectColours[i_oGraph.m_vectNodes[nNode]],
-			i_vectColours))
+			i_vectNodeColours[nNode],
+			i_vectNodeColours))
 			return false;
 	}
 
 	return true;
 }
 
-bool SolveScheduling(
-		const int i_nTimeSlotCount, 
-		const int i_nRoomCount,
-		const int i_nCourseCount,
-		)
+bool CheckInput(
+	const int i_nTimeSlotCount, 
+	const int i_nRoomCount,
+	const int i_nCourseCount,
+	const vector<vector<int>> & i_vectStudentsCourses)
 {
+	//Positive counts
+	if(i_nTimeSlotCount >= 0
+		&& i_nRoomCount >= 0
+		&& i_nCourseCount >= 0)
+		return false;
+
+	//Course numbers should be less than the course count
+	for(const vector<int> & vectConstraint : i_vectStudentsCourses)
+	{
+		for(const int nCourse : vectConstraint)
+		{
+			assert(nCourse >= 0
+				&& nCourse < i_nCourseCount);
+			if(!(nCourse >= 0
+				&& nCourse < i_nCourseCount))
+				return false;
+		}
+	}
+
+	//Constraint vectors should not contain duplicates
+	for(const vector<int> & vectConstraint : i_vectStudentsCourses)
+	{
+		for(int nCourse1 = 0; 
+			nCourse1 < vectConstraint.size();
+			++nCourse1)
+		{
+			for(int nCourse2 = nCourse1 + 1;
+				nCourse2 < vectConstraint.size();
+				++nCourse2)
+			{
+				if(vectConstraint[nCourse1] == 	vectConstraint[nCourse2])
+					return false;
+			}
+		}
+	}
+
+	return true;
+}
+
+//Students courses are just a vector of course numbers, one for each student
+bool SolveScheduling(
+	const int i_nTimeSlotCount, 
+	const int i_nRoomCount,
+	const int i_nCourseCount,
+	const vector<vector<int>> & i_vectStudentsCourses)
+{
+	//Check input
+	if(!CheckInput(
+		i_nTimeSlotCount, 
+		i_nRoomCount, 
+		i_nCourseCount, 
+		i_vectStudentsCourses))
+		return false;
+	
 	//Construct graph from input
-	Graph oGraph = MakeConstraintGraph(
-		i_nCourseCount,
-		i_oConstraints);
+	Graph oGraph(i_nCourseCount, i_vectStudentsCourses);
 
 	//Colour the graph
 	vector<int> vectNodeColours;
@@ -215,10 +297,17 @@ bool SolveScheduling(
 		i_nTimeSlotCount, // i_nMaxColours
 		i_nRoomCount, //i_nMaxNodesPerColour
 		vectNodeColours);
+	assert(bReturnValue);
 
-	//Print the output
-	if(bReturnValue)
+	//Check and print the output
+	if(bReturnValue &= CheckSolution(
+		oGraph,
+		vectNodeColours,
+		i_nTimeSlotCount,
+		i_nRoomCount))
+	{
 		PrintCourseSchedulingSolution(vectNodeColours);
+	}
 	
 	return bReturnValue;
 }
